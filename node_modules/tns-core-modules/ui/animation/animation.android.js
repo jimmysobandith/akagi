@@ -136,6 +136,7 @@ var Animation = (function (_super) {
                 this._animatorSet.playTogether(this._nativeAnimatorsArray);
             }
         }
+        this._enableHardwareAcceleration();
         if (animation_common_1.traceEnabled()) {
             animation_common_1.traceWrite("Starting " + this._nativeAnimatorsArray.length + " animations " + (this._playSequentially ? "sequentially." : "together."), animation_common_1.traceCategories.Animation);
         }
@@ -157,21 +158,25 @@ var Animation = (function (_super) {
         if (!this.isPlaying) {
             return;
         }
-        this._propertyUpdateCallbacks.forEach(function (v) { return v(); });
-        this._resolveAnimationFinishedPromise();
-        if (this._target) {
-            this._target._removeAnimation(this);
+        var i = 0;
+        var length = this._propertyUpdateCallbacks.length;
+        for (; i < length; i++) {
+            this._propertyUpdateCallbacks[i]();
         }
+        this._disableHardwareAcceleration();
+        this._resolveAnimationFinishedPromise();
     };
     Animation.prototype._onAndroidAnimationCancel = function () {
-        this._propertyResetCallbacks.forEach(function (v) { return v(); });
-        this._rejectAnimationFinishedPromise();
-        if (this._target) {
-            this._target._removeAnimation(this);
+        var i = 0;
+        var length = this._propertyResetCallbacks.length;
+        for (; i < length; i++) {
+            this._propertyResetCallbacks[i]();
         }
+        this._disableHardwareAcceleration();
+        this._rejectAnimationFinishedPromise();
     };
     Animation.prototype._createAnimators = function (propertyAnimation) {
-        if (!propertyAnimation.target.nativeViewProtected) {
+        if (!propertyAnimation.target.nativeView) {
             return;
         }
         if (animation_common_1.traceEnabled()) {
@@ -186,9 +191,8 @@ var Animation = (function (_super) {
         if (propertyAnimation.value === null || propertyAnimation.value === undefined) {
             throw new Error("Animation value cannot be null or undefined; target: " + propertyAnimation.target + "; property: " + propertyAnimation.property + ";");
         }
-        this._target = propertyAnimation.target;
         var nativeArray;
-        var nativeView = propertyAnimation.target.nativeViewProtected;
+        var nativeView = propertyAnimation.target.nativeView;
         var animators = new Array();
         var propertyUpdateCallbacks = new Array();
         var propertyResetCallbacks = new Array();
@@ -210,10 +214,8 @@ var Animation = (function (_super) {
             };
         }
         var setLocal = this._valueSource === "animation";
-        var style = propertyAnimation.target.style;
         switch (propertyAnimation.property) {
             case animation_common_1.Properties.opacity:
-                style_properties_1.opacityProperty._initDefaultNativeValue(style);
                 originalValue1 = nativeView.getAlpha();
                 nativeArray = Array.create("float", 1);
                 nativeArray[0] = propertyAnimation.value;
@@ -227,14 +229,13 @@ var Animation = (function (_super) {
                     else {
                         propertyAnimation.target.style[style_properties_1.opacityProperty.keyframe] = originalValue1;
                     }
-                    if (propertyAnimation.target.nativeViewProtected) {
+                    if (propertyAnimation.target.nativeView) {
                         propertyAnimation.target[style_properties_1.opacityProperty.setNative](propertyAnimation.target.style.opacity);
                     }
                 }));
                 animators.push(android.animation.ObjectAnimator.ofFloat(nativeView, "alpha", nativeArray));
                 break;
             case animation_common_1.Properties.backgroundColor:
-                style_properties_1.backgroundColorProperty._initDefaultNativeValue(style);
                 ensureArgbEvaluator();
                 originalValue1 = propertyAnimation.target.backgroundColor;
                 nativeArray = Array.create(java.lang.Object, 2);
@@ -256,16 +257,14 @@ var Animation = (function (_super) {
                     }
                     else {
                         propertyAnimation.target.style[style_properties_1.backgroundColorProperty.keyframe] = originalValue1;
-                    }
-                    if (propertyAnimation.target.nativeViewProtected && propertyAnimation.target[style_properties_1.backgroundColorProperty.setNative]) {
-                        propertyAnimation.target[style_properties_1.backgroundColorProperty.setNative](propertyAnimation.target.style.backgroundColor);
+                        if (propertyAnimation.target.nativeView && propertyAnimation.target[style_properties_1.backgroundColorProperty.setNative]) {
+                            propertyAnimation.target[style_properties_1.backgroundColorProperty.setNative](propertyAnimation.target.style.backgroundColor);
+                        }
                     }
                 }));
                 animators.push(animator);
                 break;
             case animation_common_1.Properties.translate:
-                style_properties_1.translateXProperty._initDefaultNativeValue(style);
-                style_properties_1.translateYProperty._initDefaultNativeValue(style);
                 xyObjectAnimators = Array.create(android.animation.Animator, 2);
                 nativeArray = Array.create("float", 1);
                 nativeArray[0] = propertyAnimation.value.x * density;
@@ -289,10 +288,10 @@ var Animation = (function (_super) {
                     else {
                         propertyAnimation.target.style[style_properties_1.translateXProperty.keyframe] = originalValue1;
                         propertyAnimation.target.style[style_properties_1.translateYProperty.keyframe] = originalValue2;
-                    }
-                    if (propertyAnimation.target.nativeViewProtected) {
-                        propertyAnimation.target[style_properties_1.translateXProperty.setNative](propertyAnimation.target.style.translateX);
-                        propertyAnimation.target[style_properties_1.translateYProperty.setNative](propertyAnimation.target.style.translateY);
+                        if (propertyAnimation.target.nativeView) {
+                            propertyAnimation.target[style_properties_1.translateXProperty.setNative](propertyAnimation.target.style.translateX);
+                            propertyAnimation.target[style_properties_1.translateYProperty.setNative](propertyAnimation.target.style.translateY);
+                        }
                     }
                 }));
                 animatorSet = new android.animation.AnimatorSet();
@@ -301,8 +300,6 @@ var Animation = (function (_super) {
                 animators.push(animatorSet);
                 break;
             case animation_common_1.Properties.scale:
-                style_properties_1.scaleXProperty._initDefaultNativeValue(style);
-                style_properties_1.scaleYProperty._initDefaultNativeValue(style);
                 xyObjectAnimators = Array.create(android.animation.Animator, 2);
                 nativeArray = Array.create("float", 1);
                 nativeArray[0] = propertyAnimation.value.x;
@@ -326,10 +323,10 @@ var Animation = (function (_super) {
                     else {
                         propertyAnimation.target.style[style_properties_1.scaleXProperty.keyframe] = originalValue1;
                         propertyAnimation.target.style[style_properties_1.scaleYProperty.keyframe] = originalValue2;
-                    }
-                    if (propertyAnimation.target.nativeViewProtected) {
-                        propertyAnimation.target[style_properties_1.scaleXProperty.setNative](propertyAnimation.target.style.scaleX);
-                        propertyAnimation.target[style_properties_1.scaleYProperty.setNative](propertyAnimation.target.style.scaleY);
+                        if (propertyAnimation.target.nativeView) {
+                            propertyAnimation.target[style_properties_1.scaleXProperty.setNative](propertyAnimation.target.style.scaleX);
+                            propertyAnimation.target[style_properties_1.scaleYProperty.setNative](propertyAnimation.target.style.scaleY);
+                        }
                     }
                 }));
                 animatorSet = new android.animation.AnimatorSet();
@@ -338,7 +335,6 @@ var Animation = (function (_super) {
                 animators.push(animatorSet);
                 break;
             case animation_common_1.Properties.rotate:
-                style_properties_1.rotateProperty._initDefaultNativeValue(style);
                 originalValue1 = nativeView.getRotation();
                 nativeArray = Array.create("float", 1);
                 nativeArray[0] = propertyAnimation.value;
@@ -351,9 +347,9 @@ var Animation = (function (_super) {
                     }
                     else {
                         propertyAnimation.target.style[style_properties_1.rotateProperty.keyframe] = originalValue1;
-                    }
-                    if (propertyAnimation.target.nativeViewProtected) {
-                        propertyAnimation.target[style_properties_1.rotateProperty.setNative](propertyAnimation.target.style.rotate);
+                        if (propertyAnimation.target.nativeView) {
+                            propertyAnimation.target[style_properties_1.rotateProperty.setNative](propertyAnimation.target.style.rotate);
+                        }
                     }
                 }));
                 animators.push(android.animation.ObjectAnimator.ofFloat(nativeView, "rotation", nativeArray));
@@ -384,6 +380,27 @@ var Animation = (function (_super) {
     };
     Animation._getAndroidRepeatCount = function (iterations) {
         return (iterations === Number.POSITIVE_INFINITY) ? android.view.animation.Animation.INFINITE : iterations - 1;
+    };
+    Animation.prototype._enableHardwareAcceleration = function () {
+        for (var i = 0, length_4 = this._propertyAnimations.length; i < length_4; i++) {
+            var cache = this._propertyAnimations[i].target.nativeView;
+            if (cache) {
+                var layerType = cache.getLayerType();
+                if (layerType !== android.view.View.LAYER_TYPE_HARDWARE) {
+                    cache.layerType = layerType;
+                    cache.setLayerType(android.view.View.LAYER_TYPE_HARDWARE, null);
+                }
+            }
+        }
+    };
+    Animation.prototype._disableHardwareAcceleration = function () {
+        for (var i = 0, length_5 = this._propertyAnimations.length; i < length_5; i++) {
+            var cache = this._propertyAnimations[i].target.nativeView;
+            if (cache && cache.layerType !== undefined) {
+                cache.setLayerType(cache.layerType, null);
+                cache.layerType = undefined;
+            }
+        }
     };
     return Animation;
 }(animation_common_1.AnimationBase));

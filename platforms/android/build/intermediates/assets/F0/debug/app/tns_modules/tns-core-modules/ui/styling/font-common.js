@@ -1,31 +1,28 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 var properties_1 = require("../core/properties");
-var Font = (function () {
-    function Font(fontFamily, fontSize, fontStyle, fontWeight) {
+var FontBase = (function () {
+    function FontBase(fontFamily, fontSize, fontStyle, fontWeight) {
         this.fontFamily = fontFamily;
         this.fontSize = fontSize;
         this.fontStyle = fontStyle;
         this.fontWeight = fontWeight;
     }
-    Object.defineProperty(Font.prototype, "isItalic", {
+    Object.defineProperty(FontBase.prototype, "isItalic", {
         get: function () {
             return this.fontStyle === FontStyle.ITALIC;
         },
         enumerable: true,
         configurable: true
     });
-    Object.defineProperty(Font.prototype, "isBold", {
+    Object.defineProperty(FontBase.prototype, "isBold", {
         get: function () {
-            return this.fontWeight === FontWeight.SEMI_BOLD ||
-                this.fontWeight === FontWeight.BOLD ||
-                this.fontWeight === "700" ||
-                this.fontWeight === FontWeight.EXTRA_BOLD ||
-                this.fontWeight === FontWeight.BLACK;
+            return this.fontWeight === FontWeight.BOLD
+                || this.fontWeight === "700";
         },
         enumerable: true,
         configurable: true
     });
-    Font.equals = function (value1, value2) {
+    FontBase.equals = function (value1, value2) {
         if (!value1 && !value2) {
             return true;
         }
@@ -37,10 +34,10 @@ var Font = (function () {
             value1.fontStyle === value2.fontStyle &&
             value1.fontWeight === value2.fontWeight;
     };
-    Font.default = undefined;
-    return Font;
+    return FontBase;
 }());
-exports.Font = Font;
+FontBase.default = undefined;
+exports.FontBase = FontBase;
 var FontStyle;
 (function (FontStyle) {
     FontStyle.NORMAL = "normal";

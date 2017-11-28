@@ -3,7 +3,6 @@ var bindable_1 = require("../../core/bindable");
 var file_system_1 = require("../../../file-system");
 var binding_builder_1 = require("../binding-builder");
 var file_name_resolver_1 = require("../../../file-system/file-name-resolver");
-var profiling_1 = require("../../../profiling");
 var platform = require("../../../platform");
 var UI_PATH = "ui/";
 var MODULES = {
@@ -17,9 +16,11 @@ var MODULES = {
 var CODEFILE = "codeFile";
 var CSSFILE = "cssFile";
 var IMPORT = "import";
-var createComponentInstance = profiling_1.profile("createComponentInstance", function (elementName, namespace) {
+function getComponentModule(elementName, namespace, attributes, exports, moduleNamePath) {
     var instance;
     var instanceModule;
+    var componentModule;
+    elementName = elementName.split("-").map(function (s) { return s[0].toUpperCase() + s.substring(1); }).join("");
     var moduleId = MODULES[elementName] || UI_PATH +
         (elementName.toLowerCase().indexOf("layout") !== -1 ? "layouts/" : "") +
         elementName.split(/(?=[A-Z])/).join("-").toLowerCase();
@@ -49,17 +50,15 @@ var createComponentInstance = profiling_1.profile("createComponentInstance", fun
         var debug = require("utils/debug");
         throw new debug.ScopeError(ex, "Module '" + moduleId + "' not found for element '" + (namespace ? namespace + ":" : "") + elementName + "'.");
     }
-    return { instance: instance, instanceModule: instanceModule };
-});
-var getComponentModuleExports = profiling_1.profile("getComponentModuleExports", function (instance, moduleExports, attributes) {
+    var cssApplied = false;
     if (attributes) {
         if (attributes[IMPORT]) {
             var importPath = attributes[IMPORT].trim();
             if (importPath.indexOf("~/") === 0) {
                 importPath = file_system_1.path.join(file_system_1.knownFolders.currentApp().path, importPath.replace("~/", ""));
             }
-            moduleExports = global.loadModule(importPath);
-            instance.exports = moduleExports;
+            exports = global.loadModule(importPath);
+            instance.exports = exports;
         }
         if (attributes[CODEFILE]) {
             var codeFilePath = attributes[CODEFILE].trim();
@@ -68,19 +67,13 @@ var getComponentModuleExports = profiling_1.profile("getComponentModuleExports",
             }
             var codeFilePathWithExt = codeFilePath.indexOf(".js") !== -1 ? codeFilePath : codeFilePath + ".js";
             if (file_system_1.File.exists(codeFilePathWithExt)) {
-                moduleExports = global.loadModule(codeFilePath);
-                instance.exports = moduleExports;
+                exports = global.loadModule(codeFilePath);
+                instance.exports = exports;
             }
             else {
                 throw new Error("Code file with path \"" + codeFilePathWithExt + "\" cannot be found!");
             }
         }
-    }
-    return moduleExports;
-});
-var applyComponentCss = profiling_1.profile("applyComponentCss", function (instance, moduleNamePath, attributes) {
-    var cssApplied = false;
-    if (attributes) {
         if (attributes[CSSFILE] && typeof instance.addCssFile === "function") {
             var cssFilePath = attributes[CSSFILE].trim();
             if (cssFilePath.indexOf("~/") === 0) {
@@ -103,9 +96,10 @@ var applyComponentCss = profiling_1.profile("applyComponentCss", function (insta
                 cssApplied = true;
             }
         }
+        if (!cssApplied) {
+            instance._refreshCss();
+        }
     }
-});
-var applyComponentAttributes = profiling_1.profile("applyComponentAttributes", function (instance, instanceModule, moduleExports, attributes) {
     if (instance && instanceModule) {
         for (var attr in attributes) {
             var attrValue = attributes[attr];
@@ -128,23 +122,13 @@ var applyComponentAttributes = profiling_1.profile("applyComponentAttributes", f
                     }
                 }
                 if (subObj !== undefined && subObj !== null) {
-                    setPropertyValue(subObj, instanceModule, moduleExports, subPropName, attrValue);
+                    setPropertyValue(subObj, instanceModule, exports, subPropName, attrValue);
                 }
             }
             else {
-                setPropertyValue(instance, instanceModule, moduleExports, attr, attrValue);
+                setPropertyValue(instance, instanceModule, exports, attr, attrValue);
             }
         }
-    }
-});
-function getComponentModule(elementName, namespace, attributes, moduleExports, moduleNamePath) {
-    elementName = elementName.split("-").map(function (s) { return s[0].toUpperCase() + s.substring(1); }).join("");
-    var _a = createComponentInstance(elementName, namespace), instance = _a.instance, instanceModule = _a.instanceModule;
-    moduleExports = getComponentModuleExports(instance, moduleExports, attributes);
-    applyComponentCss(instance, moduleNamePath, attributes);
-    applyComponentAttributes(instance, instanceModule, moduleExports, attributes);
-    var componentModule;
-    if (instance && instanceModule) {
         componentModule = { component: instance, exports: instanceModule };
     }
     return componentModule;
@@ -170,7 +154,13 @@ function setPropertyValue(instance, instanceModule, exports, propertyName, prope
         instance[propertyName] = exports[propertyValue];
     }
     else {
-        instance[propertyName] = propertyValue;
+        var attrHandled = false;
+        if (!attrHandled && instance._applyXmlAttribute) {
+            attrHandled = instance._applyXmlAttribute(propertyName, propertyValue);
+        }
+        if (!attrHandled) {
+            instance[propertyName] = propertyValue;
+        }
     }
 }
 exports.setPropertyValue = setPropertyValue;

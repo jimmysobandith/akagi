@@ -18,9 +18,7 @@ var XMLHttpRequest = (function () {
         this.textTypes = [
             'text/plain',
             'application/xml',
-            'application/rss+xml',
-            'text/html',
-            'text/xml'
+            'text/html'
         ];
         this._listeners = new Map();
         this._readyState = this.UNSENT;
@@ -162,7 +160,9 @@ var XMLHttpRequest = (function () {
         }
         var result = "";
         for (var i in this._headers) {
-            result += i + ": " + this._headers[i] + "\r\n";
+            if (i !== "set-cookie" && i !== "set-cookie2") {
+                result += i + ": " + this._headers[i] + "\r\n";
+            }
         }
         return result.substr(0, result.length - 2);
     };

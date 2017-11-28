@@ -2,7 +2,6 @@ function __export(m) {
     for (var p in m) if (!exports.hasOwnProperty(p)) exports[p] = m[p];
 }
 Object.defineProperty(exports, "__esModule", { value: true });
-var debug_1 = require("../../../utils/debug");
 var properties_1 = require("../properties");
 var bindable_1 = require("../bindable");
 var platform_1 = require("../../../platform");
@@ -11,14 +10,11 @@ exports.isAndroid = platform_1.isAndroid;
 var utils_1 = require("../../../utils/utils");
 exports.layout = utils_1.layout;
 var style_properties_1 = require("../../styling/style-properties");
-var dom_node_1 = require("../../../debugger/dom-node");
 var types = require("../../../utils/types");
 var color_1 = require("../../../color");
 exports.Color = color_1.Color;
-var profiling_1 = require("../../../profiling");
 __export(require("../bindable"));
 __export(require("../properties"));
-var ssm = require("../../styling/style-scope");
 var styleScopeModule;
 function ensureStyleScopeModule() {
     if (!styleScopeModule) {
@@ -77,11 +73,41 @@ function eachDescendant(view, callback) {
 }
 exports.eachDescendant = eachDescendant;
 var viewIdCounter = 1;
+var contextMap = new Map();
+function getNativeView(context, typeName) {
+    var typeMap = contextMap.get(context);
+    if (!typeMap) {
+        typeMap = new Map();
+        contextMap.set(context, typeMap);
+        return undefined;
+    }
+    var array = typeMap.get(typeName);
+    if (array) {
+        var nativeView = void 0;
+        while (array.length > 0) {
+            var weakRef = array.pop();
+            nativeView = weakRef.get();
+            if (nativeView) {
+                return nativeView;
+            }
+        }
+    }
+    return undefined;
+}
+function putNativeView(context, view) {
+    var typeMap = contextMap.get(context);
+    var typeName = view.typeName;
+    var list = typeMap.get(typeName);
+    if (!list) {
+        list = [];
+        typeMap.set(typeName, list);
+    }
+    list.push(new WeakRef(view.nativeView));
+}
 var ViewBase = (function (_super) {
     __extends(ViewBase, _super);
     function ViewBase() {
         var _this = _super.call(this) || this;
-        _this._cssState = new ssm.CssState(_this);
         _this.pseudoClassAliases = {
             'highlighted': [
                 'active',
@@ -94,16 +120,6 @@ var ViewBase = (function (_super) {
         _this._style = new properties_1.Style(_this);
         return _this;
     }
-    Object.defineProperty(ViewBase.prototype, "nativeView", {
-        get: function () {
-            return this.nativeViewProtected;
-        },
-        set: function (value) {
-            this.setNativeView(value);
-        },
-        enumerable: true,
-        configurable: true
-    });
     Object.defineProperty(ViewBase.prototype, "typeName", {
         get: function () {
             return types.getClass(this);
@@ -115,13 +131,8 @@ var ViewBase = (function (_super) {
         get: function () {
             return this._style;
         },
-        set: function (inlineStyle) {
-            if (typeof inlineStyle === "string") {
-                this.setInlineStyle(inlineStyle);
-            }
-            else {
-                throw new Error("View.style property is read-only.");
-            }
+        set: function (value) {
+            throw new Error("View.style property is read-only.");
         },
         enumerable: true,
         configurable: true
@@ -157,6 +168,16 @@ var ViewBase = (function (_super) {
         enumerable: true,
         configurable: true
     });
+    Object.defineProperty(ViewBase.prototype, "inlineStyleSelector", {
+        get: function () {
+            return this._inlineStyleSelector;
+        },
+        set: function (value) {
+            this._inlineStyleSelector = value;
+        },
+        enumerable: true,
+        configurable: true
+    });
     ViewBase.prototype.getViewById = function (id) {
         return getViewById(this, id);
     };
@@ -170,18 +191,11 @@ var ViewBase = (function (_super) {
         enumerable: true,
         configurable: true
     });
-    ViewBase.prototype.ensureDomNode = function () {
-        if (!this.domNode) {
-            this.domNode = new dom_node_1.DOMNode(this);
-        }
-    };
     ViewBase.prototype.set = function (name, value) {
         this[name] = bindable_1.WrappedValue.unwrap(value);
     };
     ViewBase.prototype.onLoaded = function () {
         this._isLoaded = true;
-        this._cssState.onLoaded();
-        this._resumeNativeUpdates();
         this._loadEachChild();
         this._emit("loaded");
     };
@@ -192,28 +206,17 @@ var ViewBase = (function (_super) {
         });
     };
     ViewBase.prototype.onUnloaded = function () {
-        this._suspendNativeUpdates();
         this._unloadEachChild();
         this._isLoaded = false;
-        this._cssState.onUnloaded();
         this._emit("unloaded");
-    };
-    ViewBase.prototype._suspendNativeUpdates = function () {
-        this._suspendNativeUpdatesCount++;
-    };
-    ViewBase.prototype._resumeNativeUpdates = function () {
-        this._suspendNativeUpdatesCount--;
-        if (!this._suspendNativeUpdatesCount) {
-            this.onResumeNativeUpdates();
-        }
     };
     ViewBase.prototype._batchUpdate = function (callback) {
         try {
-            this._suspendNativeUpdates();
+            ++this._batchUpdateScope;
             return callback();
         }
         finally {
-            this._resumeNativeUpdates();
+            --this._batchUpdateScope;
         }
     };
     ViewBase.prototype._unloadEachChild = function () {
@@ -224,8 +227,84 @@ var ViewBase = (function (_super) {
             return true;
         });
     };
+    ViewBase.prototype._applyStyleFromScope = function () {
+        var scope = this._styleScope;
+        if (scope) {
+            scope.applySelectors(this);
+        }
+        else {
+            this._setCssState(null);
+        }
+    };
+    ViewBase.prototype._setCssState = function (next) {
+        var _this = this;
+        var previous = this._cssState;
+        this._cssState = next;
+        if (!this._invalidateCssHandler) {
+            this._invalidateCssHandler = function () {
+                if (_this._invalidateCssHandlerSuspended) {
+                    return;
+                }
+                _this.applyCssState();
+            };
+        }
+        try {
+            this._invalidateCssHandlerSuspended = true;
+            if (next) {
+                next.changeMap.forEach(function (changes, view) {
+                    if (changes.attributes) {
+                        changes.attributes.forEach(function (attribute) {
+                            view.addEventListener(attribute + "Change", _this._invalidateCssHandler);
+                        });
+                    }
+                    if (changes.pseudoClasses) {
+                        changes.pseudoClasses.forEach(function (pseudoClass) {
+                            var eventName = ":" + pseudoClass;
+                            view.addEventListener(":" + pseudoClass, _this._invalidateCssHandler);
+                            if (view[eventName]) {
+                                view[eventName](+1);
+                            }
+                        });
+                    }
+                });
+            }
+            if (previous) {
+                previous.changeMap.forEach(function (changes, view) {
+                    if (changes.attributes) {
+                        changes.attributes.forEach(function (attribute) {
+                            view.removeEventListener("onPropertyChanged:" + attribute, _this._invalidateCssHandler);
+                        });
+                    }
+                    if (changes.pseudoClasses) {
+                        changes.pseudoClasses.forEach(function (pseudoClass) {
+                            var eventName = ":" + pseudoClass;
+                            view.removeEventListener(eventName, _this._invalidateCssHandler);
+                            if (view[eventName]) {
+                                view[eventName](-1);
+                            }
+                        });
+                    }
+                });
+            }
+        }
+        finally {
+            this._invalidateCssHandlerSuspended = false;
+        }
+        this.applyCssState();
+    };
     ViewBase.prototype.notifyPseudoClassChanged = function (pseudoClass) {
         this.notify({ eventName: ":" + pseudoClass, object: this });
+    };
+    ViewBase.prototype.applyCssState = function () {
+        var _this = this;
+        this._batchUpdate(function () {
+            if (!_this._cssState) {
+                _this._cancelAllAnimations();
+                properties_1.resetCSSProperties(_this.style);
+                return;
+            }
+            _this._cssState.apply();
+        });
     };
     ViewBase.prototype.getAllAliasedStates = function (name) {
         var allStates = [];
@@ -252,6 +331,16 @@ var ViewBase = (function (_super) {
             if (this.cssPseudoClasses.has(allStates[i])) {
                 this.cssPseudoClasses.delete(allStates[i]);
                 this.notifyPseudoClassChanged(allStates[i]);
+            }
+        }
+    };
+    ViewBase.prototype._applyInlineStyle = function (inlineStyle) {
+        if (typeof inlineStyle === "string") {
+            try {
+                ensureStyleScopeModule();
+                styleScopeModule.applyInlineStyle(this, inlineStyle);
+            }
+            finally {
             }
         }
     };
@@ -329,13 +418,21 @@ var ViewBase = (function (_super) {
         view.parent = this;
         this._addViewCore(view, atIndex);
         view._parentChanged(null);
-        if (this.domNode) {
-            this.domNode.onChildAdded(view);
-        }
+    };
+    ViewBase.prototype._setStyleScope = function (scope) {
+        this._styleScope = scope;
+        this._applyStyleFromScope();
+        this.eachChild(function (v) {
+            v._setStyleScope(scope);
+            return true;
+        });
     };
     ViewBase.prototype._addViewCore = function (view, atIndex) {
         properties_1.propagateInheritableProperties(this, view);
-        view._inheritStyleScope(this._styleScope);
+        var styleScope = this._styleScope;
+        if (styleScope) {
+            view._setStyleScope(styleScope);
+        }
         properties_1.propagateInheritableCssProperties(this.style, view.style);
         if (this._context) {
             view._setupUI(this._context, atIndex);
@@ -351,14 +448,14 @@ var ViewBase = (function (_super) {
         if (view.parent !== this) {
             throw new Error("View not added to this instance. View: " + view + " CurrentParent: " + view.parent + " ExpectedParent: " + this);
         }
-        if (this.domNode) {
-            this.domNode.onChildRemoved(view);
-        }
         this._removeViewCore(view);
         view.parent = undefined;
         view._parentChanged(this);
     };
     ViewBase.prototype._removeViewCore = function (view) {
+        if (this._styleScope === view._styleScope) {
+            view._setStyleScope(null);
+        }
         if (view.isLoaded) {
             view.onUnloaded();
         }
@@ -372,13 +469,17 @@ var ViewBase = (function (_super) {
     ViewBase.prototype.disposeNativeView = function () {
     };
     ViewBase.prototype.initNativeView = function () {
+        if (this._cssState) {
+            this._cssState.playPendingKeyframeAnimations();
+        }
     };
     ViewBase.prototype.resetNativeView = function () {
-    };
-    ViewBase.prototype.resetNativeViewInternal = function () {
-    };
-    ViewBase.prototype._setupAsRootView = function (context) {
-        this._setupUI(context);
+        if (this.nativeView && this.recycleNativeView && platform_1.isAndroid) {
+            properties_1.resetNativeView(this);
+        }
+        if (this._cssState) {
+            this._cancelAllAnimations();
+        }
     };
     ViewBase.prototype._setupUI = function (context, atIndex, parentIsLoaded) {
         bindable_1.traceNotifyEvent(this, "_setupUI");
@@ -390,16 +491,17 @@ var ViewBase = (function (_super) {
         }
         this._context = context;
         bindable_1.traceNotifyEvent(this, "_onContextChanged");
-        var nativeView;
+        var currentNativeView = this.nativeView;
         if (platform_1.isAndroid) {
+            var nativeView = void 0;
+            if (this.recycleNativeView) {
+                nativeView = getNativeView(context, this.typeName);
+            }
             if (!nativeView) {
                 nativeView = this.createNativeView();
             }
-            this._androidView = nativeView;
+            this._androidView = this.nativeView = nativeView;
             if (nativeView) {
-                if (this._isPaddingRelative === undefined) {
-                    this._isPaddingRelative = nativeView.isPaddingRelative();
-                }
                 var result = nativeView.defaultPaddings;
                 if (result === undefined) {
                     result = org.nativescript.widgets.ViewHelper.getPadding(nativeView);
@@ -425,44 +527,34 @@ var ViewBase = (function (_super) {
             }
         }
         else {
-            nativeView = this.createNativeView();
-            if (nativeView) {
-                this._iosView = nativeView;
+            var nativeView = this.createNativeView();
+            if (!currentNativeView && nativeView) {
+                this.nativeView = this._iosView = nativeView;
             }
         }
-        this.setNativeView(nativeView || this.nativeViewProtected);
+        this.initNativeView();
         if (this.parent) {
             var nativeIndex = this.parent._childIndexToNativeChildIndex(atIndex);
             this._isAddedToNativeVisualTree = this.parent._addViewToNativeVisualTree(this, nativeIndex);
         }
-        this._resumeNativeUpdates();
+        if (this.nativeView) {
+            if (currentNativeView !== this.nativeView) {
+                properties_1.initNativeView(this);
+            }
+        }
         this.eachChild(function (child) {
             child._setupUI(context);
             return true;
         });
     };
-    ViewBase.prototype.setNativeView = function (value) {
-        if (this.__nativeView === value) {
-            return;
-        }
-        if (this.__nativeView) {
-            this._suspendNativeUpdates();
-        }
-        this.__nativeView = this.nativeViewProtected = value;
-        if (this.__nativeView) {
-            this._suspendedUpdates = undefined;
-            this.initNativeView();
-            this._resumeNativeUpdates();
-        }
-    };
     ViewBase.prototype._tearDownUI = function (force) {
-        if (bindable_1.traceEnabled()) {
-            bindable_1.traceWrite(this + "._tearDownUI(" + force + ")", bindable_1.traceCategories.VisualTreeEvents);
-        }
         if (!this._context) {
             return;
         }
-        this.resetNativeViewInternal();
+        if (bindable_1.traceEnabled()) {
+            bindable_1.traceWrite(this + "._tearDownUI(" + force + ")", bindable_1.traceCategories.VisualTreeEvents);
+        }
+        this.resetNativeView();
         this.eachChild(function (child) {
             child._tearDownUI(force);
             return true;
@@ -470,17 +562,19 @@ var ViewBase = (function (_super) {
         if (this.parent) {
             this.parent._removeViewFromNativeVisualTree(this);
         }
+        var nativeView = this.nativeView;
+        if (nativeView && this.recycleNativeView && platform_1.isAndroid) {
+            var nativeParent = platform_1.isAndroid ? nativeView.getParent() : nativeView.superview;
+            if (!nativeParent) {
+                putNativeView(this._context, this);
+            }
+        }
         this.disposeNativeView();
-        this._suspendNativeUpdates();
         if (platform_1.isAndroid) {
-            this.setNativeView(null);
+            this.nativeView = null;
             this._androidView = null;
         }
         this._context = null;
-        if (this.domNode) {
-            this.domNode.dispose();
-            this.domNode = undefined;
-        }
         bindable_1.traceNotifyEvent(this, "_onContextChanged");
         bindable_1.traceNotifyEvent(this, "_tearDownUI");
     };
@@ -509,8 +603,8 @@ var ViewBase = (function (_super) {
         this.addPseudoClass(state);
     };
     ViewBase.prototype._applyXmlAttribute = function (attribute, value) {
-        if (attribute === "style" || attribute === "rows" || attribute === "columns" || attribute === "fontAttributes") {
-            this[attribute] = value;
+        if (attribute === "style") {
+            this._applyInlineStyle(value);
             return true;
         }
         return false;
@@ -519,11 +613,9 @@ var ViewBase = (function (_super) {
         if (typeof style !== "string") {
             throw new Error("Parameter should be valid CSS string!");
         }
-        ensureStyleScopeModule();
-        styleScopeModule.applyInlineStyle(this, style);
+        this._applyInlineStyle(style);
     };
     ViewBase.prototype._parentChanged = function (oldParent) {
-        var newParent = this.parent;
         if (oldParent) {
             properties_1.clearInheritedProperties(this);
             if (this.bindingContextBoundToParentBindingContextChanged) {
@@ -531,72 +623,37 @@ var ViewBase = (function (_super) {
             }
         }
         else if (this.shouldAddHandlerToParentBindingContextChanged) {
-            newParent.on("bindingContextChange", this.bindingContextChanged, this);
-            this.bindings.get("bindingContext").bind(newParent.bindingContext);
+            var parent_4 = this.parent;
+            parent_4.on("bindingContextChange", this.bindingContextChanged, this);
+            this.bindings.get("bindingContext").bind(parent_4.bindingContext);
         }
     };
-    ViewBase.prototype.onResumeNativeUpdates = function () {
-        properties_1.initNativeView(this);
-    };
-    ViewBase.prototype.toString = function () {
-        var str = this.typeName;
-        if (this.id) {
-            str += "<" + this.id + ">";
+    ViewBase.prototype._registerAnimation = function (animation) {
+        if (this._registeredAnimations === undefined) {
+            this._registeredAnimations = new Array();
         }
-        else {
-            str += "(" + this._domId + ")";
-        }
-        var source = debug_1.Source.get(this);
-        if (source) {
-            str += "@" + source + ";";
-        }
-        return str;
+        this._registeredAnimations.push(animation);
     };
-    ViewBase.prototype._onCssStateChange = function () {
-        this._cssState.onChange();
-        eachDescendant(this, function (child) {
-            child._cssState.onChange();
-            return true;
-        });
-    };
-    ViewBase.prototype._inheritStyleScope = function (styleScope) {
-        if (this._styleScope !== styleScope) {
-            this._styleScope = styleScope;
-            this._onCssStateChange();
-            this.eachChild(function (child) {
-                child._inheritStyleScope(styleScope);
-                return true;
-            });
+    ViewBase.prototype._unregisterAnimation = function (animation) {
+        if (this._registeredAnimations) {
+            var index_1 = this._registeredAnimations.indexOf(animation);
+            if (index_1 >= 0) {
+                this._registeredAnimations.splice(index_1, 1);
+            }
         }
     };
-    ViewBase.loadedEvent = "loaded";
-    ViewBase.unloadedEvent = "unloaded";
-    __decorate([
-        profiling_1.profile
-    ], ViewBase.prototype, "onLoaded", null);
-    __decorate([
-        profiling_1.profile
-    ], ViewBase.prototype, "onUnloaded", null);
-    __decorate([
-        profiling_1.profile
-    ], ViewBase.prototype, "addPseudoClass", null);
-    __decorate([
-        profiling_1.profile
-    ], ViewBase.prototype, "deletePseudoClass", null);
-    __decorate([
-        profiling_1.profile
-    ], ViewBase.prototype, "requestLayout", null);
-    __decorate([
-        profiling_1.profile
-    ], ViewBase.prototype, "_addView", null);
-    __decorate([
-        profiling_1.profile
-    ], ViewBase.prototype, "_setupUI", null);
-    __decorate([
-        profiling_1.profile
-    ], ViewBase.prototype, "_tearDownUI", null);
+    ViewBase.prototype._cancelAllAnimations = function () {
+        if (this._registeredAnimations) {
+            for (var _i = 0, _a = this._registeredAnimations; _i < _a.length; _i++) {
+                var animation = _a[_i];
+                animation.cancel();
+            }
+        }
+    };
     return ViewBase;
 }(bindable_1.Observable));
+ViewBase.loadedEvent = "loaded";
+ViewBase.unloadedEvent = "unloaded";
 exports.ViewBase = ViewBase;
 ViewBase.prototype.isCollapsed = false;
 ViewBase.prototype._oldLeft = 0;
@@ -624,8 +681,7 @@ ViewBase.prototype._defaultPaddingRight = 0;
 ViewBase.prototype._defaultPaddingBottom = 0;
 ViewBase.prototype._defaultPaddingLeft = 0;
 ViewBase.prototype._isViewBase = true;
-ViewBase.prototype.recycleNativeView = "never";
-ViewBase.prototype._suspendNativeUpdatesCount = 3;
+ViewBase.prototype._batchUpdateScope = 0;
 exports.bindingContextProperty = new properties_1.InheritedProperty({ name: "bindingContext" });
 exports.bindingContextProperty.register(ViewBase);
 exports.classNameProperty = new properties_1.Property({
@@ -636,11 +692,18 @@ exports.classNameProperty = new properties_1.Property({
         if (typeof newValue === "string") {
             newValue.split(" ").forEach(function (c) { return classes.add(c); });
         }
-        view._onCssStateChange();
+        resetStyles(view);
     }
 });
 exports.classNameProperty.register(ViewBase);
-exports.idProperty = new properties_1.Property({ name: "id", valueChanged: function (view, oldValue, newValue) { return view._onCssStateChange(); } });
+function resetStyles(view) {
+    view._applyStyleFromScope();
+    view.eachChild(function (child) {
+        resetStyles(child);
+        return true;
+    });
+}
+exports.idProperty = new properties_1.Property({ name: "id", valueChanged: function (view, oldValue, newValue) { return resetStyles(view); } });
 exports.idProperty.register(ViewBase);
 function booleanConverter(v) {
     var lowercase = (v + '').toLowerCase();

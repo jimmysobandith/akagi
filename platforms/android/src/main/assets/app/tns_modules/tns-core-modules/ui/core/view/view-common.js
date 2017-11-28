@@ -3,6 +3,7 @@ function __export(m) {
 }
 Object.defineProperty(exports, "__esModule", { value: true });
 var style_properties_1 = require("../../styling/style-properties");
+var debug_1 = require("../../../utils/debug");
 var view_base_1 = require("../view-base");
 var gestures_1 = require("../../gestures");
 __export(require("../../styling/style-properties"));
@@ -725,36 +726,27 @@ var ViewCommon = (function (_super) {
     };
     ViewCommon.prototype.createAnimation = function (animation) {
         ensureAnimationModule();
-        if (!this._localAnimations) {
-            this._localAnimations = new Set();
-        }
         animation.target = this;
-        var anim = new animationModule.Animation([animation]);
-        this._localAnimations.add(anim);
-        return anim;
+        return new animationModule.Animation([animation]);
     };
-    ViewCommon.prototype._removeAnimation = function (animation) {
-        var localAnimations = this._localAnimations;
-        if (localAnimations && localAnimations.has(animation)) {
-            localAnimations.delete(animation);
-            if (animation.isPlaying) {
-                animation.cancel();
-            }
-            return true;
+    ViewCommon.prototype.toString = function () {
+        var str = this.typeName;
+        if (this.id) {
+            str += "<" + this.id + ">";
         }
-        return false;
-    };
-    ViewCommon.prototype.resetNativeView = function () {
-        var _this = this;
-        if (this._localAnimations) {
-            this._localAnimations.forEach(function (a) { return _this._removeAnimation(a); });
+        else {
+            str += "(" + this._domId + ")";
         }
-        _super.prototype.resetNativeView.call(this);
+        var source = debug_1.Source.get(this);
+        if (source) {
+            str += "@" + source + ";";
+        }
+        return str;
     };
     ViewCommon.prototype._setNativeViewFrame = function (nativeView, frame) {
     };
     ViewCommon.prototype._getValue = function () {
-        throw new Error("The View._getValue is obsolete. There is a new property system.");
+        throw new Error("The View._setValue is obsolete. There is a new property system.");
     };
     ViewCommon.prototype._setValue = function () {
         throw new Error("The View._setValue is obsolete. There is a new property system.");
@@ -777,8 +769,6 @@ var ViewCommon = (function (_super) {
         this.effectiveMarginBottom = style_properties_1.PercentLength.toDevicePixels(style.marginBottom, 0, parentAvailableHeight);
     };
     ViewCommon.prototype._setNativeClipToBounds = function () {
-    };
-    ViewCommon.prototype._redrawNativeBackground = function (value) {
     };
     return ViewCommon;
 }(view_base_1.ViewBase));
