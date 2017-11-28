@@ -1,7 +1,7 @@
 <!--
     App Name: THEAKAGI.COM
     Description : Application de création d'évènement
-    Contributeur : SOBANDITH Jimmy, 
+    Contributeur : SOBANDITH Jimmy, COUDEVILLE Lena, 
 -->
 <Page xmlns="http://schemas.nativescript.org/tns.xsd" navigatingTo="onNavigatingTo" class="page">
     <!--
