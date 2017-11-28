@@ -12,7 +12,7 @@ https://docs.nativescript.org/ui/components.
     <Page.actionBar>
         <ActionBar title="THEAKAGI.COM" icon="" class="action-bar">
 
-             <Image src="res://images/logo.png" class="action-image"></Image>
+             <Image src="~/images/logo.png" class="action-image"></Image>
 
         </ActionBar>
     </Page.actionBar>
