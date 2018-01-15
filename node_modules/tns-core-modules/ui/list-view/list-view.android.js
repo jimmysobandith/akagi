@@ -6,7 +6,6 @@ var list_view_common_1 = require("./list-view-common");
 var stack_layout_1 = require("../layouts/stack-layout");
 var proxy_view_container_1 = require("../proxy-view-container");
 var layout_base_1 = require("../layouts/layout-base");
-var profiling_1 = require("../../profiling");
 __export(require("./list-view-common"));
 var ITEMLOADING = list_view_common_1.ListViewBase.itemLoadingEvent;
 var LOADMOREITEMS = list_view_common_1.ListViewBase.loadMoreItemsEvent;
@@ -28,11 +27,11 @@ function initializeItemClickListener() {
             var view = owner._realizedTemplates.get(owner._getItemTemplate(index).key).get(convertView);
             owner.notify({ eventName: ITEMTAP, object: owner, index: index, view: view });
         };
-        ItemClickListenerImpl = __decorate([
-            Interfaces([android.widget.AdapterView.OnItemClickListener])
-        ], ItemClickListenerImpl);
         return ItemClickListenerImpl;
     }(java.lang.Object));
+    ItemClickListenerImpl = __decorate([
+        Interfaces([android.widget.AdapterView.OnItemClickListener])
+    ], ItemClickListenerImpl);
     ItemClickListener = ItemClickListenerImpl;
 }
 var ListView = (function (_super) {
@@ -61,7 +60,7 @@ var ListView = (function (_super) {
     };
     ListView.prototype.initNativeView = function () {
         _super.prototype.initNativeView.call(this);
-        var nativeView = this.nativeViewProtected;
+        var nativeView = this.nativeView;
         nativeView.itemClickListener.owner = this;
         var adapter = nativeView.adapter;
         adapter.owner = this;
@@ -72,7 +71,7 @@ var ListView = (function (_super) {
         nativeView.setId(this._androidViewId);
     };
     ListView.prototype.disposeNativeView = function () {
-        var nativeView = this.nativeViewProtected;
+        var nativeView = this.nativeView;
         nativeView.setAdapter(null);
         nativeView.itemClickListener.owner = null;
         nativeView.adapter.owner = null;
@@ -80,7 +79,7 @@ var ListView = (function (_super) {
         _super.prototype.disposeNativeView.call(this);
     };
     ListView.prototype.refresh = function () {
-        var nativeView = this.nativeViewProtected;
+        var nativeView = this.nativeView;
         if (!nativeView || !nativeView.getAdapter()) {
             return;
         }
@@ -92,7 +91,7 @@ var ListView = (function (_super) {
         nativeView.getAdapter().notifyDataSetChanged();
     };
     ListView.prototype.scrollToIndex = function (index) {
-        var nativeView = this.nativeViewProtected;
+        var nativeView = this.nativeView;
         if (nativeView) {
             nativeView.setSelection(index);
         }
@@ -140,14 +139,14 @@ var ListView = (function (_super) {
         this._realizedTemplates.clear();
     };
     ListView.prototype[list_view_common_1.separatorColorProperty.getDefault] = function () {
-        var nativeView = this.nativeViewProtected;
+        var nativeView = this.nativeView;
         return {
             dividerHeight: nativeView.getDividerHeight(),
             divider: nativeView.getDivider()
         };
     };
     ListView.prototype[list_view_common_1.separatorColorProperty.setNative] = function (value) {
-        var nativeView = this.nativeViewProtected;
+        var nativeView = this.nativeView;
         if (value instanceof list_view_common_1.Color) {
             nativeView.setDivider(new android.graphics.drawable.ColorDrawable(value.android));
             nativeView.setDividerHeight(1);
@@ -165,12 +164,9 @@ var ListView = (function (_super) {
         if (value) {
             this._itemTemplatesInternal = this._itemTemplatesInternal.concat(value);
         }
-        this.nativeViewProtected.setAdapter(new ListViewAdapterClass(this));
+        this.nativeView.setAdapter(new ListViewAdapterClass(this));
         this.refresh();
     };
-    __decorate([
-        profiling_1.profile
-    ], ListView.prototype, "createNativeView", null);
     return ListView;
 }(list_view_common_1.ListViewBase));
 exports.ListView = ListView;
@@ -250,13 +246,13 @@ function ensureListViewAdapterClass() {
                     if (args.view instanceof layout_base_1.LayoutBase &&
                         !(args.view instanceof proxy_view_container_1.ProxyViewContainer)) {
                         this.owner._addView(args.view);
-                        convertView = args.view.nativeViewProtected;
+                        convertView = args.view.nativeView;
                     }
                     else {
                         var sp = new stack_layout_1.StackLayout();
                         sp.addChild(args.view);
                         this.owner._addView(sp);
-                        convertView = sp.nativeViewProtected;
+                        convertView = sp.nativeView;
                     }
                 }
                 var realizedItemsForTemplateKey = this.owner._realizedTemplates.get(template.key);
@@ -269,9 +265,6 @@ function ensureListViewAdapterClass() {
             }
             return convertView;
         };
-        __decorate([
-            profiling_1.profile
-        ], ListViewAdapter.prototype, "getView", null);
         return ListViewAdapter;
     }(android.widget.BaseAdapter));
     ListViewAdapterClass = ListViewAdapter;

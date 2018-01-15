@@ -8,7 +8,6 @@ var file_system_1 = require("../../file-system");
 var builder_1 = require("../builder");
 var application = require("../../application");
 exports.application = application;
-var profiling_1 = require("../../profiling");
 __export(require("../core/view"));
 function onLivesync(args) {
     setTimeout(function () {
@@ -65,44 +64,58 @@ function reloadPage() {
 }
 exports.reloadPage = reloadPage;
 global.__onLiveSyncCore = reloadPage;
-var entryCreatePage = profiling_1.profile("entry.create", function (entry) {
-    var page = entry.create();
-    if (!page) {
-        throw new Error("Failed to create Page with entry.create() function.");
-    }
-    return page;
-});
-var moduleCreatePage = profiling_1.profile("module.createPage", function (moduleNamePath, moduleExports) {
-    if (view_1.traceEnabled()) {
-        view_1.traceWrite("Calling createPage()", view_1.traceCategories.Navigation);
-    }
-    var page = moduleExports.createPage();
-    var cssFileName = file_name_resolver_1.resolveFileName(moduleNamePath, "css");
-    if (cssFileName) {
-        page.addCssFile(cssFileName);
-    }
-    return page;
-});
-var loadPageModule = profiling_1.profile("loadPageModule", function (moduleNamePath, entry) {
-    if (global.moduleExists(entry.moduleName)) {
-        if (view_1.traceEnabled()) {
-            view_1.traceWrite("Loading pre-registered JS module: " + entry.moduleName, view_1.traceCategories.Navigation);
+function resolvePageFromEntry(entry) {
+    var page;
+    if (entry.create) {
+        page = entry.create();
+        if (!page) {
+            throw new Error("Failed to create Page with entry.create() function.");
         }
-        return global.loadModule(entry.moduleName);
+        page._refreshCss();
     }
-    else {
-        var moduleExportsResolvedPath = file_name_resolver_1.resolveFileName(moduleNamePath, "js");
-        if (moduleExportsResolvedPath) {
+    else if (entry.moduleName) {
+        var currentAppPath = file_system_1.knownFolders.currentApp().path;
+        var moduleNamePath = file_system_1.path.join(currentAppPath, entry.moduleName);
+        view_1.traceWrite("frame module path: " + moduleNamePath, view_1.traceCategories.Navigation);
+        view_1.traceWrite("frame module module: " + entry.moduleName, view_1.traceCategories.Navigation);
+        var moduleExports = void 0;
+        if (global.moduleExists(entry.moduleName)) {
             if (view_1.traceEnabled()) {
-                view_1.traceWrite("Loading JS file: " + moduleExportsResolvedPath, view_1.traceCategories.Navigation);
+                view_1.traceWrite("Loading pre-registered JS module: " + entry.moduleName, view_1.traceCategories.Navigation);
             }
-            moduleExportsResolvedPath = moduleExportsResolvedPath.substr(0, moduleExportsResolvedPath.length - 3);
-            return global.loadModule(moduleExportsResolvedPath);
+            moduleExports = global.loadModule(entry.moduleName);
+        }
+        else {
+            var moduleExportsResolvedPath = file_name_resolver_1.resolveFileName(moduleNamePath, "js");
+            if (moduleExportsResolvedPath) {
+                if (view_1.traceEnabled()) {
+                    view_1.traceWrite("Loading JS file: " + moduleExportsResolvedPath, view_1.traceCategories.Navigation);
+                }
+                moduleExportsResolvedPath = moduleExportsResolvedPath.substr(0, moduleExportsResolvedPath.length - 3);
+                moduleExports = global.loadModule(moduleExportsResolvedPath);
+            }
+        }
+        if (moduleExports && moduleExports.createPage) {
+            if (view_1.traceEnabled()) {
+                view_1.traceWrite("Calling createPage()", view_1.traceCategories.Navigation);
+            }
+            page = moduleExports.createPage();
+            var cssFileName = file_name_resolver_1.resolveFileName(moduleNamePath, "css");
+            if (cssFileName) {
+                page.addCssFile(cssFileName);
+            }
+        }
+        else {
+            page = pageFromBuilder(moduleNamePath, moduleExports);
+        }
+        if (!page) {
+            throw new Error("Failed to load Page from entry.moduleName: " + entry.moduleName);
         }
     }
-    return null;
-});
-var pageFromBuilder = profiling_1.profile("pageFromBuilder", function (moduleNamePath, moduleExports) {
+    return page;
+}
+exports.resolvePageFromEntry = resolvePageFromEntry;
+function pageFromBuilder(moduleNamePath, moduleExports) {
     var page;
     var fileName = file_name_resolver_1.resolveFileName(moduleNamePath, "xml");
     if (fileName) {
@@ -112,37 +125,14 @@ var pageFromBuilder = profiling_1.profile("pageFromBuilder", function (moduleNam
         page = builder_1.loadPage(moduleNamePath, fileName, moduleExports);
     }
     return page;
-});
-exports.resolvePageFromEntry = profiling_1.profile("resolvePageFromEntry", function (entry) {
-    var page;
-    if (entry.create) {
-        page = entryCreatePage(entry);
-    }
-    else if (entry.moduleName) {
-        var currentAppPath = file_system_1.knownFolders.currentApp().path;
-        var moduleNamePath = file_system_1.path.join(currentAppPath, entry.moduleName);
-        view_1.traceWrite("frame module path: " + moduleNamePath, view_1.traceCategories.Navigation);
-        view_1.traceWrite("frame module module: " + entry.moduleName, view_1.traceCategories.Navigation);
-        var moduleExports = loadPageModule(moduleNamePath, entry);
-        if (moduleExports && moduleExports.createPage) {
-            page = moduleCreatePage(moduleNamePath, moduleExports);
-        }
-        else {
-            page = pageFromBuilder(moduleNamePath, moduleExports);
-        }
-        if (!page) {
-            throw new Error("Failed to load page XML file for module: " + entry.moduleName);
-        }
-    }
-    return page;
-});
+}
 var FrameBase = (function (_super) {
     __extends(FrameBase, _super);
     function FrameBase() {
-        var _this = _super !== null && _super.apply(this, arguments) || this;
+        var _this = _super.call(this) || this;
+        _this._isInFrameStack = false;
         _this._backStack = new Array();
         _this._navigationQueue = new Array();
-        _this._isInFrameStack = false;
         return _this;
     }
     FrameBase.prototype.canGoBack = function () {
@@ -155,11 +145,15 @@ var FrameBase = (function (_super) {
         if (!this.canGoBack()) {
             return;
         }
-        if (backstackEntry) {
+        if (!backstackEntry) {
+            backstackEntry = this._backStack.pop();
+        }
+        else {
             var backIndex = this._backStack.indexOf(backstackEntry);
             if (backIndex < 0) {
                 return;
             }
+            this._backStack.splice(backIndex);
         }
         var navigationContext = {
             entry: backstackEntry,
@@ -175,20 +169,20 @@ var FrameBase = (function (_super) {
             }
         }
     };
-    FrameBase.prototype._removeBackstackEntries = function (removed) {
-    };
     FrameBase.prototype.navigate = function (param) {
         if (view_1.traceEnabled()) {
             view_1.traceWrite("NAVIGATE", view_1.traceCategories.Navigation);
         }
         var entry = buildEntryFromArgs(param);
-        var page = exports.resolvePageFromEntry(entry);
+        var page = resolvePageFromEntry(entry);
         this._pushInFrameStack();
         var backstackEntry = {
             entry: entry,
             resolvedPage: page,
             navDepth: undefined,
-            fragmentTag: undefined
+            fragmentTag: undefined,
+            isBack: undefined,
+            isNavigation: true
         };
         var navigationContext = {
             entry: backstackEntry,
@@ -204,12 +198,6 @@ var FrameBase = (function (_super) {
             }
         }
     };
-    FrameBase.prototype.isCurrent = function (entry) {
-        return this._currentEntry === entry;
-    };
-    FrameBase.prototype.setCurrent = function (entry) {
-        this._currentEntry = entry;
-    };
     FrameBase.prototype._processNavigationQueue = function (page) {
         if (this._navigationQueue.length === 0) {
             return;
@@ -217,7 +205,7 @@ var FrameBase = (function (_super) {
         var entry = this._navigationQueue[0].entry;
         var currentNavigationPage = entry.resolvedPage;
         if (page !== currentNavigationPage) {
-            return;
+            throw new Error("Corrupted navigation stack; page: " + page + "; currentNavigationPage: " + currentNavigationPage);
         }
         this._navigationQueue.shift();
         if (this._navigationQueue.length > 0) {
@@ -225,20 +213,6 @@ var FrameBase = (function (_super) {
             this._processNavigationContext(navigationContext);
         }
         this._updateActionBar();
-    };
-    FrameBase.prototype._findEntryForTag = function (fragmentTag) {
-        var entry;
-        if (this._currentEntry && this._currentEntry.fragmentTag === fragmentTag) {
-            entry = this._currentEntry;
-        }
-        else {
-            entry = this._backStack.find(function (value) { return value.fragmentTag === fragmentTag; });
-            if (!entry) {
-                var navigationItem = this._navigationQueue.find(function (value) { return value.entry.fragmentTag === fragmentTag; });
-                entry = navigationItem ? navigationItem.entry : undefined;
-            }
-        }
-        return entry;
     };
     FrameBase.prototype.navigationQueueIsEmpty = function () {
         return this._navigationQueue.length === 0;
@@ -261,12 +235,10 @@ var FrameBase = (function (_super) {
             this.performNavigation(navigationContext);
         }
     };
-    FrameBase.prototype._clearBackStack = function () {
-        this._backStack.length = 0;
-    };
     FrameBase.prototype.performNavigation = function (navigationContext) {
         var navContext = navigationContext.entry;
         if (navigationContext.entry.entry.clearHistory) {
+            this._backStack.length = 0;
         }
         else if (FrameBase._isEntryBackstackVisible(this._currentEntry)) {
             this._backStack.push(this._currentEntry);
@@ -275,19 +247,9 @@ var FrameBase = (function (_super) {
         this._navigateCore(navContext);
     };
     FrameBase.prototype.performGoBack = function (navigationContext) {
-        var backstackEntry = navigationContext.entry;
-        if (!backstackEntry) {
-            backstackEntry = this._backStack.pop();
-            navigationContext.entry = backstackEntry;
-        }
-        else {
-            var index_1 = this._backStack.indexOf(backstackEntry);
-            var removed = this._backStack.splice(index_1 + 1);
-            this._backStack.pop();
-            this._removeBackstackEntries(removed);
-        }
-        this._onNavigatingTo(backstackEntry, true);
-        this._goBackCore(backstackEntry);
+        var navContext = navigationContext.entry;
+        this._onNavigatingTo(navContext, navigationContext.isBackNavigation);
+        this._goBackCore(navContext);
     };
     FrameBase.prototype._goBackCore = function (backstackEntry) {
         if (view_1.traceEnabled()) {
@@ -455,16 +417,10 @@ var FrameBase = (function (_super) {
         }
         return result;
     };
-    FrameBase.androidOptionSelectedEvent = "optionSelected";
-    FrameBase.defaultAnimatedNavigation = true;
-    __decorate([
-        profiling_1.profile
-    ], FrameBase.prototype, "performNavigation", null);
-    __decorate([
-        profiling_1.profile
-    ], FrameBase.prototype, "performGoBack", null);
     return FrameBase;
 }(view_1.CustomLayoutView));
+FrameBase.androidOptionSelectedEvent = "optionSelected";
+FrameBase.defaultAnimatedNavigation = true;
 exports.FrameBase = FrameBase;
 function topmost() {
     if (frameStack.length > 0) {

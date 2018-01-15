@@ -133,7 +133,7 @@
         jumboMode="false"
         optimize="true"
         revision="25.0.3"
-        sha1="dd431d6aa9ce9dc0d429fcd239d412a82ea0e9a7">
+        sha1="ed69cd5603304a6fc9a36a94c8be977a1d0e4857">
         <dex dex="C:\Nativescript\akagi\platforms\android\build\intermediates\pre-dexed\F0\debug\intermediates-exploded-aar-widgets-release_d235c4c55b50a019d97d7829647bb11846662a14.jar" />
     </item>
 

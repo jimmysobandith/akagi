@@ -26,11 +26,11 @@ function initializeImageLoadedListener() {
                 owner.isLoading = false;
             }
         };
-        ImageLoadedListenerImpl = __decorate([
-            Interfaces([org.nativescript.widgets.image.Worker.OnImageLoadedListener])
-        ], ImageLoadedListenerImpl);
         return ImageLoadedListenerImpl;
     }(java.lang.Object));
+    ImageLoadedListenerImpl = __decorate([
+        Interfaces([org.nativescript.widgets.image.Worker.OnImageLoadedListener])
+    ], ImageLoadedListenerImpl);
     ImageLoadedListener = ImageLoadedListenerImpl;
 }
 var Image = (function (_super) {
@@ -55,21 +55,18 @@ var Image = (function (_super) {
     };
     Image.prototype.initNativeView = function () {
         _super.prototype.initNativeView.call(this);
-        this.nativeViewProtected.listener.owner = this;
+        this.nativeView.listener.owner = this;
     };
     Image.prototype.disposeNativeView = function () {
-        this.nativeViewProtected.listener.owner = null;
+        this.nativeView.listener.owner = null;
         _super.prototype.disposeNativeView.call(this);
     };
-    Image.prototype.resetNativeView = function () {
-        _super.prototype.resetNativeView.call(this);
-        this.nativeViewProtected.setImageMatrix(new android.graphics.Matrix());
-    };
-    Image.prototype._createImageSourceFromSrc = function (value) {
-        var imageView = this.nativeViewProtected;
+    Image.prototype._createImageSourceFromSrc = function () {
+        var imageView = this.nativeView;
         if (!imageView) {
             return;
         }
+        var value = this.src;
         if (!value) {
             imageView.setUri(null, 0, 0, false, true);
             return;
@@ -79,7 +76,7 @@ var Image = (function (_super) {
             value = value.trim();
             this.isLoading = true;
             if (image_common_1.isDataURI(value)) {
-                _super.prototype._createImageSourceFromSrc.call(this, value);
+                _super.prototype._createImageSourceFromSrc.call(this);
             }
             else if (image_common_1.isFileOrResourcePath(value)) {
                 if (value.indexOf(image_common_1.RESOURCE_PREFIX) === 0) {
@@ -98,7 +95,7 @@ var Image = (function (_super) {
             }
         }
         else {
-            _super.prototype._createImageSourceFromSrc.call(this, value);
+            _super.prototype._createImageSourceFromSrc.call(this);
         }
     };
     Image.prototype[image_common_1.stretchProperty.getDefault] = function () {
@@ -107,17 +104,17 @@ var Image = (function (_super) {
     Image.prototype[image_common_1.stretchProperty.setNative] = function (value) {
         switch (value) {
             case "aspectFit":
-                this.nativeViewProtected.setScaleType(android.widget.ImageView.ScaleType.FIT_CENTER);
+                this.nativeView.setScaleType(android.widget.ImageView.ScaleType.FIT_CENTER);
                 break;
             case "aspectFill":
-                this.nativeViewProtected.setScaleType(android.widget.ImageView.ScaleType.CENTER_CROP);
+                this.nativeView.setScaleType(android.widget.ImageView.ScaleType.CENTER_CROP);
                 break;
             case "fill":
-                this.nativeViewProtected.setScaleType(android.widget.ImageView.ScaleType.FIT_XY);
+                this.nativeView.setScaleType(android.widget.ImageView.ScaleType.FIT_XY);
                 break;
             case "none":
             default:
-                this.nativeViewProtected.setScaleType(android.widget.ImageView.ScaleType.MATRIX);
+                this.nativeView.setScaleType(android.widget.ImageView.ScaleType.MATRIX);
                 break;
         }
     };
@@ -126,17 +123,17 @@ var Image = (function (_super) {
     };
     Image.prototype[image_common_1.tintColorProperty.setNative] = function (value) {
         if (value === undefined) {
-            this.nativeViewProtected.clearColorFilter();
+            this.nativeView.clearColorFilter();
         }
         else {
-            this.nativeViewProtected.setColorFilter(value.android);
+            this.nativeView.setColorFilter(value.android);
         }
     };
     Image.prototype[image_common_1.imageSourceProperty.getDefault] = function () {
         return undefined;
     };
     Image.prototype[image_common_1.imageSourceProperty.setNative] = function (value) {
-        var nativeView = this.nativeViewProtected;
+        var nativeView = this.nativeView;
         if (value && value.android) {
             var rotation = value.rotationAngle ? value.rotationAngle : 0;
             nativeView.setRotationAngle(rotation);
@@ -151,7 +148,7 @@ var Image = (function (_super) {
         return undefined;
     };
     Image.prototype[image_common_1.srcProperty.setNative] = function (value) {
-        this._createImageSourceFromSrc(value);
+        this._createImageSourceFromSrc();
     };
     return Image;
 }(image_common_1.ImageBase));

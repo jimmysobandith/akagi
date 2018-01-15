@@ -178,8 +178,7 @@ var ImageSource = (function () {
 exports.ImageSource = ImageSource;
 function getTargetFormat(format) {
     switch (format) {
-        case "jpeg":
-        case "jpg":
+        case "jpeg" || "jpg":
             return android.graphics.Bitmap.CompressFormat.JPEG;
         default:
             return android.graphics.Bitmap.CompressFormat.PNG;

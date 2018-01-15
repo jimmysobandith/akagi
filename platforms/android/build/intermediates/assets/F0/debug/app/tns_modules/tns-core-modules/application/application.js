@@ -3,7 +3,6 @@ function __export(m) {
 }
 Object.defineProperty(exports, "__esModule", { value: true });
 var application_common_1 = require("./application-common");
-var profiling_1 = require("../profiling");
 __export(require("./application-common"));
 var ActivityCreated = "activityCreated";
 var ActivityDestroyed = "activityDestroyed";
@@ -74,18 +73,18 @@ var AndroidApplication = (function (_super) {
             delete this._registeredReceivers[intentFilter];
         }
     };
-    AndroidApplication.activityCreatedEvent = ActivityCreated;
-    AndroidApplication.activityDestroyedEvent = ActivityDestroyed;
-    AndroidApplication.activityStartedEvent = ActivityStarted;
-    AndroidApplication.activityPausedEvent = ActivityPaused;
-    AndroidApplication.activityResumedEvent = ActivityResumed;
-    AndroidApplication.activityStoppedEvent = ActivityStopped;
-    AndroidApplication.saveActivityStateEvent = SaveActivityState;
-    AndroidApplication.activityResultEvent = ActivityResult;
-    AndroidApplication.activityBackPressedEvent = ActivityBackPressed;
-    AndroidApplication.activityRequestPermissionsEvent = ActivityRequestPermissions;
     return AndroidApplication;
 }(application_common_1.Observable));
+AndroidApplication.activityCreatedEvent = ActivityCreated;
+AndroidApplication.activityDestroyedEvent = ActivityDestroyed;
+AndroidApplication.activityStartedEvent = ActivityStarted;
+AndroidApplication.activityPausedEvent = ActivityPaused;
+AndroidApplication.activityResumedEvent = ActivityResumed;
+AndroidApplication.activityStoppedEvent = ActivityStopped;
+AndroidApplication.saveActivityStateEvent = SaveActivityState;
+AndroidApplication.activityResultEvent = ActivityResult;
+AndroidApplication.activityBackPressedEvent = ActivityBackPressed;
+AndroidApplication.activityRequestPermissionsEvent = ActivityRequestPermissions;
 exports.AndroidApplication = AndroidApplication;
 var androidApp = new AndroidApplication();
 exports.android = androidApp;
@@ -137,41 +136,32 @@ global.__onLiveSync = function () {
     application_common_1.livesync();
 };
 function initLifecycleCallbacks() {
-    var setThemeOnLaunch = profiling_1.profile("setThemeOnLaunch", function (activity) {
-        var activityInfo = activity.getPackageManager().getActivityInfo(activity.getComponentName(), android.content.pm.PackageManager.GET_META_DATA);
-        if (activityInfo.metaData) {
-            var setThemeOnLaunch_1 = activityInfo.metaData.getInt("SET_THEME_ON_LAUNCH", -1);
-            if (setThemeOnLaunch_1 !== -1) {
-                activity.setTheme(setThemeOnLaunch_1);
-            }
-        }
-    });
-    var notifyActivityCreated = profiling_1.profile("notifyActivityCreated", function (activity, savedInstanceState) {
-        androidApp.notify({ eventName: ActivityCreated, object: androidApp, activity: activity, bundle: savedInstanceState });
-    });
-    var subscribeForGlobalLayout = profiling_1.profile("subscribeForGlobalLayout", function (activity) {
-        var rootView = activity.getWindow().getDecorView().getRootView();
-        var onGlobalLayoutListener = new android.view.ViewTreeObserver.OnGlobalLayoutListener({
-            onGlobalLayout: function () {
-                application_common_1.notify({ eventName: application_common_1.displayedEvent, object: androidApp, activity: activity });
-                var viewTreeObserver = rootView.getViewTreeObserver();
-                viewTreeObserver.removeOnGlobalLayoutListener(onGlobalLayoutListener);
-            }
-        });
-        rootView.getViewTreeObserver().addOnGlobalLayoutListener(onGlobalLayoutListener);
-    });
     var lifecycleCallbacks = new android.app.Application.ActivityLifecycleCallbacks({
-        onActivityCreated: profiling_1.profile("onActivityCreated", function (activity, savedInstanceState) {
-            setThemeOnLaunch(activity);
+        onActivityCreated: function (activity, savedInstanceState) {
+            var activityInfo = activity.getPackageManager().getActivityInfo(activity.getComponentName(), android.content.pm.PackageManager.GET_META_DATA);
+            if (activityInfo.metaData) {
+                var setThemeOnLaunch = activityInfo.metaData.getInt("SET_THEME_ON_LAUNCH", -1);
+                if (setThemeOnLaunch !== -1) {
+                    activity.setTheme(setThemeOnLaunch);
+                }
+            }
             if (!androidApp.startActivity) {
                 androidApp.startActivity = activity;
             }
-            notifyActivityCreated(activity, savedInstanceState);
+            androidApp.notify({ eventName: ActivityCreated, object: androidApp, activity: activity, bundle: savedInstanceState });
             if (application_common_1.hasListeners(application_common_1.displayedEvent)) {
-                subscribeForGlobalLayout(activity);
+                var rootView_1 = activity.findViewById(android.R.id.content);
+                var onGlobalLayoutListener_1 = new android.view.ViewTreeObserver.OnGlobalLayoutListener({
+                    onGlobalLayout: function () {
+                        application_common_1.notify({ eventName: application_common_1.displayedEvent, object: androidApp, activity: activity });
+                        var viewTreeObserver = rootView_1.getViewTreeObserver();
+                        viewTreeObserver.removeOnGlobalLayoutListener(onGlobalLayoutListener_1);
+                    }
+                });
+                rootView_1.getViewTreeObserver().addOnGlobalLayoutListener(onGlobalLayoutListener_1);
             }
-        }),
-        onActivityDestroyed: profiling_1.profile("onActivityDestroyed", function (activity) {
+        },
+        onActivityDestroyed: function (activity) {
             if (activity === androidApp.foregroundActivity) {
                 androidApp.foregroundActivity = undefined;
             }
@@ -180,45 +170,45 @@ function initLifecycleCallbacks() {
             }
             androidApp.notify({ eventName: ActivityDestroyed, object: androidApp, activity: activity });
             gc();
-        }),
-        onActivityPaused: profiling_1.profile("onActivityPaused", function (activity) {
+        },
+        onActivityPaused: function (activity) {
             if (activity.isNativeScriptActivity) {
                 androidApp.paused = true;
                 application_common_1.notify({ eventName: application_common_1.suspendEvent, object: androidApp, android: activity });
             }
             androidApp.notify({ eventName: ActivityPaused, object: androidApp, activity: activity });
-        }),
-        onActivityResumed: profiling_1.profile("onActivityResumed", function (activity) {
+        },
+        onActivityResumed: function (activity) {
             androidApp.foregroundActivity = activity;
             if (activity.isNativeScriptActivity) {
                 application_common_1.notify({ eventName: application_common_1.resumeEvent, object: androidApp, android: activity });
                 androidApp.paused = false;
             }
             androidApp.notify({ eventName: ActivityResumed, object: androidApp, activity: activity });
-        }),
-        onActivitySaveInstanceState: profiling_1.profile("onActivityResumed", function (activity, outState) {
+        },
+        onActivitySaveInstanceState: function (activity, outState) {
             androidApp.notify({ eventName: SaveActivityState, object: androidApp, activity: activity, bundle: outState });
-        }),
-        onActivityStarted: profiling_1.profile("onActivityStarted", function (activity) {
+        },
+        onActivityStarted: function (activity) {
             androidApp.notify({ eventName: ActivityStarted, object: androidApp, activity: activity });
-        }),
-        onActivityStopped: profiling_1.profile("onActivityStopped", function (activity) {
+        },
+        onActivityStopped: function (activity) {
             androidApp.notify({ eventName: ActivityStopped, object: androidApp, activity: activity });
-        })
+        }
     });
     return lifecycleCallbacks;
 }
 var currentOrientation;
 function initComponentCallbacks() {
     var componentCallbacks = new android.content.ComponentCallbacks2({
-        onLowMemory: profiling_1.profile("onLowMemory", function () {
+        onLowMemory: function () {
             gc();
             java.lang.System.gc();
             application_common_1.notify({ eventName: application_common_1.lowMemoryEvent, object: this, android: this });
-        }),
-        onTrimMemory: profiling_1.profile("onTrimMemory", function (level) {
-        }),
-        onConfigurationChanged: profiling_1.profile("onConfigurationChanged", function (newConfig) {
+        },
+        onTrimMemory: function (level) {
+        },
+        onConfigurationChanged: function (newConfig) {
             var newOrientation = newConfig.orientation;
             if (newOrientation === currentOrientation) {
                 return;
@@ -242,7 +232,7 @@ function initComponentCallbacks() {
                 newValue: newValue,
                 object: androidApp
             });
-        })
+        }
     });
     return componentCallbacks;
 }

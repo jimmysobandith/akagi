@@ -92,25 +92,25 @@ var WebView = (function (_super) {
     };
     WebView.prototype.initNativeView = function () {
         _super.prototype.initNativeView.call(this);
-        this.nativeViewProtected.client.owner = this;
+        this.nativeView.client.owner = this;
     };
-    WebView.prototype.disposeNativeView = function () {
-        var nativeView = this.nativeViewProtected;
+    WebView.prototype.resetNativeView = function () {
+        var nativeView = this.nativeView;
         if (nativeView) {
             nativeView.destroy();
         }
         nativeView.client.owner = null;
-        _super.prototype.disposeNativeView.call(this);
+        _super.prototype.resetNativeView.call(this);
     };
     WebView.prototype._loadUrl = function (src) {
-        var nativeView = this.nativeViewProtected;
+        var nativeView = this.nativeView;
         if (!nativeView) {
             return;
         }
         nativeView.loadUrl(src);
     };
     WebView.prototype._loadData = function (src) {
-        var nativeView = this.nativeViewProtected;
+        var nativeView = this.nativeView;
         if (!nativeView) {
             return;
         }
@@ -119,20 +119,20 @@ var WebView = (function (_super) {
     };
     Object.defineProperty(WebView.prototype, "canGoBack", {
         get: function () {
-            return this.nativeViewProtected.canGoBack();
+            return this.nativeView.canGoBack();
         },
         enumerable: true,
         configurable: true
     });
     WebView.prototype.stopLoading = function () {
-        var nativeView = this.nativeViewProtected;
+        var nativeView = this.nativeView;
         if (nativeView) {
             nativeView.stopLoading();
         }
     };
     Object.defineProperty(WebView.prototype, "canGoForward", {
         get: function () {
-            var nativeView = this.nativeViewProtected;
+            var nativeView = this.nativeView;
             if (nativeView) {
                 return nativeView.canGoForward();
             }
@@ -142,19 +142,19 @@ var WebView = (function (_super) {
         configurable: true
     });
     WebView.prototype.goBack = function () {
-        var nativeView = this.nativeViewProtected;
+        var nativeView = this.nativeView;
         if (nativeView) {
             return nativeView.goBack();
         }
     };
     WebView.prototype.goForward = function () {
-        var nativeView = this.nativeViewProtected;
+        var nativeView = this.nativeView;
         if (nativeView) {
             return nativeView.goForward();
         }
     };
     WebView.prototype.reload = function () {
-        var nativeView = this.nativeViewProtected;
+        var nativeView = this.nativeView;
         if (nativeView) {
             return nativeView.reload();
         }

@@ -1,0 +1,14 @@
+<Page>
+    <ActionBar title="THEAKAGI.COM">
+        <Image src="~/images/logo.png" class="logo"/>
+    </ActionBar>
+    <GridLayout rows="*" columns="*">
+        <GridLayout columns="auto, auto">
+            <!-- Côté gauche -->
+            <Image src="~/images/logo.png" class="logo" col="0"/>
+
+            <!-- Côté droite -->
+            <Label text="Titou tu pue" textWrap="true" col="1"/>
+        </GridLayout>
+    </GridLayout>
+</Page>

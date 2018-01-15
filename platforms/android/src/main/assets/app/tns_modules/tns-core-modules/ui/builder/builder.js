@@ -6,7 +6,6 @@ var types_1 = require("../../utils/types");
 var component_builder_1 = require("./component-builder");
 var platform_1 = require("../../platform");
 var file_name_resolver_1 = require("../../file-system/file-name-resolver");
-var profiling_1 = require("../../profiling");
 var ios = platform_1.platformNames.ios.toLowerCase();
 var android = platform_1.platformNames.android.toLowerCase();
 var defaultNameSpaceMatcher = /tns\.xsd$/i;
@@ -345,24 +344,24 @@ var xml2ui;
             if (this._nestingLevel === 0) {
                 this._state = 2;
                 if (this._setTemplateProperty && this._templateProperty.name in this._templateProperty.parent.component) {
-                    var template = this.buildTemplate();
+                    var template = this._build();
                     this._templateProperty.parent.component[this._templateProperty.name] = template;
                 }
             }
         };
-        TemplateParser.prototype.buildTemplate = function () {
+        TemplateParser.prototype._build = function () {
             var _this = this;
             var context = this._context;
             var errorFormat = this._templateProperty.errorFormat;
             var sourceTracker = this._templateProperty.sourceTracker;
-            var template = profiling_1.profile("Template()", function () {
+            var template = function () {
                 var start;
                 var ui;
                 (start = new xml2ui.XmlArgsReplay(_this._recordedXmlStream, errorFormat))
                     .pipe(new XmlStateParser(ui = new ComponentParser(context, errorFormat, sourceTracker)));
                 start.replay();
                 return ui.rootComponentModule.component;
-            });
+            };
             return template;
         };
         return TemplateParser;
@@ -374,11 +373,6 @@ var xml2ui;
             this.templateProperty = templateProperty;
             this._childParsers = new Array();
         }
-        Object.defineProperty(MultiTemplateParser.prototype, "value", {
-            get: function () { return this._value; },
-            enumerable: true,
-            configurable: true
-        });
         MultiTemplateParser.prototype.parse = function (args) {
             if (args.eventType === xml.ParserEventType.StartElement && args.elementName === "template") {
                 var childParser = new TemplateParser(this, this.templateProperty, false);
@@ -393,11 +387,11 @@ var xml2ui;
                     for (var i = 0; i < this._childParsers.length; i++) {
                         templates.push({
                             key: this._childParsers[i]["key"],
-                            createView: this._childParsers[i].buildTemplate()
+                            createView: this._childParsers[i]._build()
                         });
                     }
-                    this._value = templates;
-                    return this.parent.parse(args);
+                    this.templateProperty.parent.component[this.templateProperty.name] = templates;
+                    return this.parent;
                 }
             }
             return this;
@@ -414,30 +408,17 @@ var xml2ui;
             this.error = errorFormat;
             this.sourceTracker = sourceTracker;
         }
-        ComponentParser.prototype.buildComponent = function (args) {
-            if (args.prefix && args.namespace) {
-                return loadCustomComponent(args.namespace, args.elementName, args.attributes, this.context, this.currentRootView);
-            }
-            else {
-                var namespace = args.namespace;
-                if (defaultNameSpaceMatcher.test(namespace || '')) {
-                    namespace = undefined;
-                }
-                return component_builder_1.getComponentModule(args.elementName, namespace, args.attributes, this.context, this.moduleNamePath);
-            }
-        };
         ComponentParser.prototype.parse = function (args) {
             var parent = this.parents[this.parents.length - 1];
             var complexProperty = this.complexProperties[this.complexProperties.length - 1];
             if (args.eventType === xml.ParserEventType.StartElement) {
                 if (ComponentParser.isComplexProperty(args.elementName)) {
                     var name = ComponentParser.getComplexPropertyName(args.elementName);
-                    var complexProperty_1 = {
+                    this.complexProperties.push({
                         parent: parent,
                         name: name,
-                        items: []
-                    };
-                    this.complexProperties.push(complexProperty_1);
+                        items: [],
+                    });
                     if (ComponentParser.isKnownTemplate(name, parent.exports)) {
                         return new TemplateParser(this, {
                             context: (parent ? getExports(parent.component) : null) || this.context,
@@ -450,7 +431,7 @@ var xml2ui;
                         });
                     }
                     if (ComponentParser.isKnownMultiTemplate(name, parent.exports)) {
-                        var parser = new MultiTemplateParser(this, {
+                        return new MultiTemplateParser(this, {
                             context: (parent ? getExports(parent.component) : null) || this.context,
                             parent: parent,
                             name: name,
@@ -459,12 +440,20 @@ var xml2ui;
                             errorFormat: this.error,
                             sourceTracker: this.sourceTracker
                         });
-                        complexProperty_1.parser = parser;
-                        return parser;
                     }
                 }
                 else {
-                    var componentModule = this.buildComponent(args);
+                    var componentModule;
+                    if (args.prefix && args.namespace) {
+                        componentModule = loadCustomComponent(args.namespace, args.elementName, args.attributes, this.context, this.currentRootView);
+                    }
+                    else {
+                        var namespace = args.namespace;
+                        if (defaultNameSpaceMatcher.test(namespace || '')) {
+                            namespace = undefined;
+                        }
+                        componentModule = component_builder_1.getComponentModule(args.elementName, namespace, args.attributes, this.context, this.moduleNamePath);
+                    }
                     if (componentModule) {
                         this.sourceTracker(componentModule.component, args.position);
                         if (parent) {
@@ -491,10 +480,7 @@ var xml2ui;
             else if (args.eventType === xml.ParserEventType.EndElement) {
                 if (ComponentParser.isComplexProperty(args.elementName)) {
                     if (complexProperty) {
-                        if (complexProperty.parser) {
-                            parent.component[complexProperty.name] = complexProperty.parser.value;
-                        }
-                        else if (parent && parent.component._addArrayFromBuilder) {
+                        if (parent && parent.component._addArrayFromBuilder) {
                             parent.component._addArrayFromBuilder(complexProperty.name, complexProperty.items);
                             complexProperty.items = [];
                         }
@@ -539,14 +525,11 @@ var xml2ui;
         ComponentParser.isKnownCollection = function (name, context) {
             return ComponentParser.KNOWNCOLLECTIONS in context && context[ComponentParser.KNOWNCOLLECTIONS] && name in context[ComponentParser.KNOWNCOLLECTIONS];
         };
-        ComponentParser.KNOWNCOLLECTIONS = "knownCollections";
-        ComponentParser.KNOWNTEMPLATES = "knownTemplates";
-        ComponentParser.KNOWNMULTITEMPLATES = "knownMultiTemplates";
-        __decorate([
-            profiling_1.profile
-        ], ComponentParser.prototype, "buildComponent", null);
         return ComponentParser;
     }());
+    ComponentParser.KNOWNCOLLECTIONS = "knownCollections";
+    ComponentParser.KNOWNTEMPLATES = "knownTemplates";
+    ComponentParser.KNOWNMULTITEMPLATES = "knownMultiTemplates";
     xml2ui.ComponentParser = ComponentParser;
 })(xml2ui || (xml2ui = {}));
 //# sourceMappingURL=builder.js.map

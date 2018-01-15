@@ -4,8 +4,8 @@
         "source": "C:\\Nativescript\\akagi\\platforms\\android\\src\\main\\res\\drawable-ldpi\\logo.png"
     },
     {
-        "merged": "C:\\Nativescript\\akagi\\platforms\\android\\build\\intermediates\\res\\merged\\F0\\debug\\drawable-ldpi\\background.png",
-        "source": "C:\\Nativescript\\akagi\\platforms\\android\\src\\main\\res\\drawable-ldpi\\background.png"
+        "merged": "C:\\Nativescript\\akagi\\platforms\\android\\build\\intermediates\\res\\merged\\F0\\debug\\drawable-ldpi\\ic_menu_delete.png",
+        "source": "C:\\Nativescript\\akagi\\platforms\\android\\src\\main\\res\\drawable-ldpi\\ic_menu_delete.png"
     },
     {
         "merged": "C:\\Nativescript\\akagi\\platforms\\android\\build\\intermediates\\res\\merged\\F0\\debug\\drawable-ldpi\\icon.png",
