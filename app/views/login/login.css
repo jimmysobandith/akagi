@@ -1,9 +1,63 @@
 ActionBar
 {
     background-color: white;
+    height: 300px;
 }
 
 .logo
 {
-    height: 100px;
+    height: 150px;
+    margin-top: 50px;
+    margin-bottom: 50px;
+}
+
+.bg
+{
+    background-color: #333333;
+}
+
+.titre
+{
+    text-transform: uppercase;
+    text-align: center;
+    margin-top: 100px;
+    margin-bottom: 100px;
+    font-size: 20px;
+    color: black;
+}
+
+.titreEvenement
+{
+    font-size: 20px;
+    margin-top: 30px;
+    margin-bottom: 5px;
+    margin-right: 20px;
+    margin-left: 20px;
+    color: #068609;
+    font-weight: 800;
+    text-transform: uppercase;
+}
+
+.lieuEvenement
+{
+    margin-top: 5px;
+    margin-bottom: 5px;
+    margin-right: 20px;
+    margin-left: 20px;
+    color: white;
+}
+
+.dateEvenement
+{
+    margin-top: 5px;
+    margin-bottom: 5px;
+    margin-right: 20px;
+    margin-left: 20px;
+    color: white;
+}
+
+.bouttonEvenement
+{
+    background-color: #068609;
+    color: white;
 }

@@ -1,14 +1,36 @@
-<Page>
+<Page loaded="loaded">
     <ActionBar title="THEAKAGI.COM">
         <Image src="~/images/logo.png" class="logo"/>
     </ActionBar>
-    <GridLayout rows="*" columns="*">
-        <GridLayout columns="auto, auto">
-            <!-- Côté gauche -->
-            <Image src="~/images/logo.png" class="logo" col="0"/>
+    <TabView class="espace" androidSelectedTabHighlightColor="#068609" tabBackgroundColor="#333333" tabTextColor="white" selectedTabTextColor="#068609">
+                <TabView.items>
+                    <TabViewItem title="Accueil" >
+                    <TabViewItem.view>
+                        
+                    <GridLayout rows="auto, *">
+                            <Label text="Liste des évènements : " row="0" class="titre"/>
+                            <StackLayout class="bg" row="1">
+                                <ListView items="{{ groceryList }}">
+                                    <ListView.itemTemplate height="50">
+                                        <StackLayout>
+                                            <Label text="{{ titre }}" textWrap="true" class="titreEvenement" />
+                                            <Label text="{{ lieu }}" textWrap="true" class="lieuEvenement" />
+                                            <Label text="{{ date }}" textWrap="true" class="dateEvenement" />
+                                            <button text="Voir plus" class="bouttonEvenement" value="{{ id }}"></button>
+                                        </StackLayout>
+                                    </ListView.itemTemplate>
+                                </ListView>
+                            </StackLayout>
+                        </GridLayout>
 
-            <!-- Côté droite -->
-            <Label text="Titou tu pue" textWrap="true" col="1"/>
-        </GridLayout>
-    </GridLayout>
+
+                    </TabViewItem.view>
+                    </TabViewItem>
+                    <TabViewItem title="Compte">
+                    <TabViewItem.view>
+                        <Label text="Connexion" />
+                    </TabViewItem.view>
+                    </TabViewItem>
+                </TabView.items>
+    </TabView>
 </Page>
