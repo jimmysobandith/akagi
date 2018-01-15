@@ -8,17 +8,20 @@
                     <TabViewItem.view>
                         
                     <GridLayout rows="auto, *">
-                            <Label text="Liste des évènements : " row="0" class="titre"/>
+
+                            <StackLayout row="0">
+                                 <SearchBar id="searchBar" hint="Search" text="" clear="onClear" submit="onSubmit" />
+                            </StackLayout>
                             <StackLayout class="bg" row="1">
                                 <ListView items="{{ groceryList }}">
-                                    <ListView.itemTemplate height="50">
-                                        <StackLayout>
-                                            <Label text="{{ titre }}" textWrap="true" class="titreEvenement" />
-                                            <Label text="{{ lieu }}" textWrap="true" class="lieuEvenement" />
-                                            <Label text="{{ date }}" textWrap="true" class="dateEvenement" />
-                                            <button text="Voir plus" class="bouttonEvenement" value="{{ id }}"></button>
-                                        </StackLayout>
-                                    </ListView.itemTemplate>
+                                    <ListView.itemTemplate height="50" >
+                                           <StackLayout>
+                                                <Label text="{{ titre }}" textWrap="true" class="titreEvenement"/>
+                                                <Label text="{{ lieu }}" textWrap="true" class="lieuEvenement" />
+                                                <Label text="{{ date }}" textWrap="true" class="dateEvenement" />
+                                                <button text="Voir plus" class="bouttonEvenement" value="{{ id }}"></button>
+                                            </StackLayout>
+                                     </ListView.itemTemplate>
                                 </ListView>
                             </StackLayout>
                         </GridLayout>
@@ -28,7 +31,19 @@
                     </TabViewItem>
                     <TabViewItem title="Compte">
                     <TabViewItem.view>
-                        <Label text="Connexion" />
+                        <GridLayout rows="auto, auto, auto, *">
+                            <Label text="Connexion" class="titreConnexion" row="0"/>
+                            <StackLayout row="1">
+                                <TextField class="idInput" id="firstTextFieldId" hint="Votre Adresse mail" text="" ></TextField>
+                                <TextField class="idInput" id="firstTextFieldId" hint="Mot de passe" text="" ></TextField>
+                            </StackLayout>
+
+                            <Label text="Inscription" class="titreConnexion" row="2"/>
+                            <StackLayout row="3">
+                                <TextField class="idInput" id="firstTextFieldId" hint="Votre Adresse mail" text="" ></TextField>
+                                <TextField class="idInput" id="firstTextFieldId" hint="Mot de passe" text="" ></TextField>
+                            </StackLayout>
+                        </GridLayout>
                     </TabViewItem.view>
                     </TabViewItem>
                 </TabView.items>
