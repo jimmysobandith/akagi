@@ -30,6 +30,15 @@ function GroceryListViewModel(items) {
         }
     };
 
+function appJson()
+{
+    http.getJSON("http://teester.warmbee.com/page/json-evenements.php").then(function (r) {
+        return r;
+    }, function (e) {
+        Console
+    });
+}
+
 
     return viewModel;
 }
