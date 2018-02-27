@@ -19,3 +19,12 @@ exports.loaded = function(args) {
     groceryList.empty();
     groceryList.load();
 };
+
+exports.buttonTap = function(args) {
+    page = args.object;
+    page.bindingContext = pageData;
+
+    groceryList.empty();
+    groceryList.load();
+    alert("Liste Raffraichis");
+};

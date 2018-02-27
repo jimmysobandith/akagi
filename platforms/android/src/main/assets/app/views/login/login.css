@@ -61,9 +61,8 @@ SearchBar{
 {
     background-color: #068609;
     color: white;
-    margin-left: 150px;
-    margin-right: 150px;
     margin-bottom: 50px;
+    height: 20%;
 }
 
 

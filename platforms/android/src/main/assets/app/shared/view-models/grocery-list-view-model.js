@@ -1,24 +1,28 @@
 var config = require("../../shared/config");
 var fetchModule = require("fetch");
 var ObservableArray = require("data/observable-array").ObservableArray;
+var http = require("http");
 
-var evenement = [
-                    {id: 0, titre: "Rassemblement des mins", lieu: "Nantes - 44000", date: "Lundi 01 Janvier 2018"}, 
-                    {id: 1, titre: "Rassemblement des mins", lieu: "Nantes - 44000", date: "Lundi 01 Janvier 2018"}, 
-                    {id: 2, titre: "Rassemblement des mins", lieu: "Nantes - 44000", date: "Lundi 01 Janvier 2018"}, 
-                    {id: 3, titre: "Rassemblement des mins", lieu: "Nantes - 44000", date: "Lundi 01 Janvier 2018"}, 
-                    {id: 4, titre: "Rassemblement des mins", lieu: "Nantes - 44000", date: "Lundi 01 Janvier 2018"}, 
-                    {id: 5, titre: "Rassemblement des mins", lieu: "Nantes - 44000", date: "Lundi 01 Janvier 2018"}, 
-                    {id: 6, titre: "Rassemblement des mins", lieu: "Nantes - 44000", date: "Lundi 01 Janvier 2018"}, 
-                    {id: 7, titre: "Rassemblement des mins", lieu: "Nantes - 44000", date: "Lundi 01 Janvier 2018"}, 
-                    {id: 8, titre: "Rassemblement des mins", lieu: "Nantes - 44000", date: "Lundi 01 Janvier 2018"}, 
-                    {id: 9, titre: "Rassemblement des mins", lieu: "Nantes - 44000", date: "Lundi 01 Janvier 2018"}, 
-                    {id: 10, titre: "Rassemblement des mins", lieu: "Nantes - 44000", date: "Lundi 01 Janvier 2018"}, 
-                    {id: 11, titre: "Rassemblement des mins", lieu: "Nantes - 44000", date: "Lundi 01 Janvier 2018"}, 
-                ];
+var evenement = [];
 
 function GroceryListViewModel(items) {
     var viewModel = new ObservableArray(items);
+
+    http.request({
+        url: "http://teester.warmbee.com/page/json-evenements.php",
+        method: "POST",
+        headers: { "Content-Type": "application/json" }
+        }).then(function(result) {
+            console.log(JSON.stringify(result));
+            var obj = result.content.toJSON();
+            console.log("Je passe !");
+            console.log(obj[0].nom);
+            evenement = obj;
+            viewModel.push(obj);
+
+        }, function(error) {
+            console.error(JSON.stringify(error));
+    });
 
     viewModel.load = function() {
        viewModel.push(evenement);
@@ -29,16 +33,6 @@ function GroceryListViewModel(items) {
             viewModel.pop();
         }
     };
-
-function appJson()
-{
-    http.getJSON("http://teester.warmbee.com/page/json-evenements.php").then(function (r) {
-        return r;
-    }, function (e) {
-        Console
-    });
-}
-
 
     return viewModel;
 }
