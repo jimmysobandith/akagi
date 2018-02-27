@@ -1,0 +1,102 @@
+{\rtf1\ansi\ansicpg1252\cocoartf1561\cocoasubrtf200
+{\fonttbl\f0\fswiss\fcharset0 Helvetica;\f1\fswiss\fcharset0 Helvetica-Light;\f2\fnil\fcharset0 Monaco;
+}
+{\colortbl;\red255\green255\blue255;\red54\green73\blue83;\red46\green60\blue253;\red252\green252\blue252;
+\red0\green0\blue0;}
+{\*\expandedcolortbl;;\cssrgb\c27059\c35686\c40000;\cssrgb\c23922\c35294\c99608;\cssrgb\c99216\c99216\c99216;
+\cssrgb\c0\c0\c0;}
+\paperw11900\paperh16840\margl1440\margr1440\vieww12240\viewh18000\viewkind0
+\pard\tx566\tx1133\tx1700\tx2267\tx2834\tx3401\tx3968\tx4535\tx5102\tx5669\tx6236\tx6803\pardirnatural\partightenfactor0
+
+\f0\fs24 \cf0 \
+Installation de NativeScript\
+\
+	1. Install Node.js\
+	2. Avant de lancer la v\'e9rification de Node.js faire mode \'97version (v\'e9rifie si pr\'e9sent)\
+	\
+	\
+Pr\'e9sentation de plusieurs \'e9tapes d\'92installation via Windows :\
+\
+	1. 
+\f1\fs36 \cf2 \expnd0\expndtw0\kerning0
+Install {\field{\*\fldinst{HYPERLINK "https://chocolatey.org/"}}{\fldrslt \cf3 Chocolatey}} to simplify the installation and configuration of the requirements\
+		\'97> Run the command prompt as an Administrator\
+		\'97> Copy and paste the following script in the command prompt.\
+		\'97> 
+\f2\fs29\fsmilli14580 \cf2 \cb4 @powershell -NoProfile -ExecutionPolicy unrestricted -Command "iex ((new-object net.webclient).DownloadString('https://chocolatey.org/install.ps1'))" && SET PATH=%PATH%;%ALLUSERSPROFILE%\\chocolatey\\bin\
+		--> 
+\f1\fs36 \cf2 \cb1 \kerning1\expnd0\expndtw0 		\cf2 \expnd0\expndtw0\kerning0
+Restart the command prompt.\
+
+\f0\fs24 \cf0 \kerning1\expnd0\expndtw0 \
+	2. 
+\f1\fs36 \cf2 \expnd0\expndtw0\kerning0
+Install {\field{\*\fldinst{HYPERLINK "https://www.google.com/chrome/browser/desktop/index.html"}}{\fldrslt \cf3 Google Chrome}} (required to debug NativeScript apps)\
+		\'97> In the command prompt, run the following command.\
+		\'97> 
+\f2\fs29\fsmilli14580 \cf2 \cb4 choco install googlechrome -y\
+\
+	3. 
+\f1\fs36 \cf2 \cb1 Install the latest {\field{\*\fldinst{HYPERLINK "https://nodejs.org/en/"}}{\fldrslt \cf3 Node.js LTS}}\cf3 \
+		\'97> \cf2 In the command prompt, run the following command.\
+		\'97> 
+\f2\fs29\fsmilli14580 \cf2 \cb4 choco install nodejs-lts -y\
+\
+	4. 
+\f1\fs36 \cf2 \cb1 Install {\field{\*\fldinst{HYPERLINK "http://www.oracle.com/technetwork/java/javase/downloads/index.html"}}{\fldrslt \cf3 JDK 8}}\cf3 \
+		\'97> \cf2 In the command prompt, run the following command.\
+		\'97> 
+\f2\fs29\fsmilli14580 \cf2 \cb4 choco install jdk8 -y\
+	\
+	5. 
+\f1\fs36 \cf2 \cb1 Install the {\field{\*\fldinst{HYPERLINK "http://developer.android.com/sdk/index.html"}}{\fldrslt \cf3 Android SDK}}.\
+		\'97> In the command prompt, run the following command\
+		\'97> 
+\f2\fs29\fsmilli14580 \cf2 \cb4 choco install android-sdk -y\
+		\'97> 
+\f1\fs36 \cf2 \cb1 Restart the command prompt.\
+\
+	6. Install all packages for the Android SDK Platform 25, Android SDK Build-Tools 25.0.2 or later, Android Support Repository, Google Repository and any other SDKs that you may need. You can alternatively use the following command, which will install all required packages.\
+\
+\
+		\'97> 
+\f2\fs29\fsmilli14580 \cf2 \cb4 "%ANDROID_HOME%\\tools\\bin\\sdkmanager" "platform-tools" "platforms;android-25" "build-tools;25.0.2" "extras;android;m2repository" "extras;google;m2repository"\
+\
+	7. 
+\f1\fs36 \cf2 \cb1 Install Android virtual devices (AVDs). There are multiple ways to do it so just choose one:\
+		\'97> Execute the following command in Command Prompt as Administrator:\
+		\'97> 
+\f2\fs29\fsmilli14580 \cf2 \cb4 @powershell -NoProfile -ExecutionPolicy Bypass -Command "iex ((new-object net.webclient).DownloadString('{\field{\*\fldinst{HYPERLINK "https://nativescript.org/setup/win-avd"}}{\fldrslt \cf3 \cb4 https://nativescript.org/setup/win-avd}}'))"\
+\
+		\'97> 
+\f1\fs36 \cf2 \cb1 Use {\field{\*\fldinst{HYPERLINK "https://developer.android.com/studio/index.html"}}{\fldrslt \cf3 Android Studio}} and {\field{\*\fldinst{HYPERLINK "https://developer.android.com/studio/run/managing-avds.html"}}{\fldrslt \cf3 install Android virtual devices (AVDs)}} from there:\
+		\'97> Install the Android Studio by running the following command in the command prompt as Administrator:\
+		\'97> 
+\f2\fs29\fsmilli14580 \cf2 \cb4 choco install androidstudio -y\
+		\'97> 
+\f1\fs36 \cf2 \cb1 Restart the command prompt.\
+		\'97> Open Android Studio > NOTE: If you see a gradle error like "Failed to find Build Tools revision 25.0.2", make sure to click on the install link and fix this error. Otherwise Tools->Android->AVD Manager might not be available.\
+		\'97> Go to {\field{\*\fldinst{HYPERLINK "https://developer.android.com/studio/run/managing-avds.html"}}{\fldrslt \cf2 Create and Manage Virtual Devices}}\
+		\'97> Follow the steps to create and start AVD with enabled HAXM.\
+\
+	8. Install the NativeScript CLI\
+		\'97> Run the following command.\
+		\'97> 
+\f2\fs29\fsmilli14580 \cf2 \cb4 npm i -g nativescript\
+		\'97> 
+\f1\fs36 \cf2 \cb1 Restart the command prompt.\
+\
+	9. To check if your system is configured properly, run the following command.\
+		\'97> 
+\f2\fs29\fsmilli14580 \cf2 \cb4 tns doctor\
+
+\f1\fs36 \cf2 \cb1 \
+\
+\
+
+\f2\fs29\fsmilli14580 \cf2 \cb4 \
+\
+
+\f0\fs24 \cf0 \cb1 \kerning1\expnd0\expndtw0 \
+	\
+}
